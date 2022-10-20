@@ -52,7 +52,7 @@ def train_LSTM(device, dataset, data_length):
             loss_min = loss
 
 def train_TCN(device, dataset, data_length):
-    input_size = 912
+    input_size = 456
     learning_rate = 1e-4
     batch_size = 50
     num_epochs = 100
@@ -92,11 +92,15 @@ def train_TCN(device, dataset, data_length):
             loss_min = loss
 
 if __name__=="__main__":
+    with open("src/settings.json", "r") as fin:
+        settings = json.load(fin)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     lst = []
     for file in os.listdir("assets/preprocessed_datasets"):
         if (file.endswith(".csv")):
-            lst.append(generate_CSI_dataset(f"assets/preprocessed_datasets/{file}", 1024, "tcn"))
+            lst.append(generate_CSI_dataset(f"assets/preprocessed_datasets/{file}", settings, 25, "tcn"))
+            break
     ds = merge_datasets(lst)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    train_TCN(device, ds, 50)
+    train_TCN(device, ds, 25)

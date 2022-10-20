@@ -1,7 +1,8 @@
-from cProfile import label
 import os
 import pandas
 import torch
+
+from preprocessing import *
 
 def remove_head(fpath):
     print(fpath)
@@ -42,25 +43,35 @@ def merge_data_and_label(folder_path):
     fout = f"assets/preprocessed_datasets/{folder_path.split('/')[-2]}_session{folder_path.split('/')[-1]}.csv"
     data.to_csv(fout, index=False)
 
-def generate_CSI_dataset(fpath, data_length, model=None, threshold=0.75):
+def generate_CSI_dataset(fpath, settings, data_length, model=None, amplitude_only=True, threshold=0.75):
     fin = pandas.read_csv(fpath)
+    #preprocess
+    labels = fin["label"]
+    if (amplitude_only):
+        fin = normalize(fin.iloc[:, 1:457], settings["max_amplitude"], settings["min_amplitude"])
+    else:
+        fin = normalize(fin.iloc[:, 1:], settings["max_amplitude"], settings["min_amplitude"])
+    datas = numpy.zeros(fin.shape, numpy.float64)
+    for i in range(fin.shape[1]):
+        datas[:, i] = reduce_noise(fin.iloc[:, i])
+
     dataset = []
     action_dict = {
-        "walking": 0, 
-        "sitting": 1, 
-        "standing": 2, 
-        "lying": 3, 
-        "get_up": 4, 
-        "get_down": 5, 
+        "standing": 0,
+        "walking": 1,
+        "get_down": 2,
+        "sitting": 3,
+        "get_up": 4,
+        "lying": 5,
         "no_person": 6
     }
 
-    for i in range(len(fin)-data_length):
-        data = fin.iloc[i:i+data_length, :]
-        action_count = data["label"].value_counts()
+    for i in range(len(datas)-data_length):
+        data = datas[i:i+data_length, :]
+        action_count = labels.iloc[i:i+data_length].value_counts()
         main_action = action_count.idxmax()
         if (action_count[main_action]/data_length>=threshold):
-            data = torch.tensor(data.iloc[:, 1:].to_numpy(), dtype=torch.float)
+            data = torch.tensor(data, dtype=torch.float)
             if (model=="tcn"):
                 data = torch.transpose(data, 0, 1)
             label = [0 for i in range(0, 7)]
@@ -86,5 +97,8 @@ if __name__=="__main__":
                 folder_path = f"{ds_folder}/{room}/{session}"
                 merge_data_and_label(folder_path)
     '''
+    with open("src/settings.json", "r") as fin:
+        settings = json.load(fin)
 
     fpath = "assets/preprocessed_datasets/room_1_session1.csv"
+    print(generate_CSI_dataset(fpath, settings, 25))
