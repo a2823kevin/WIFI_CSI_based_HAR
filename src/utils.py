@@ -1,6 +1,7 @@
 import os
 import pandas
 import torch
+from sklearn.decomposition import PCA
 
 from preprocessing import *
 
@@ -43,7 +44,7 @@ def merge_data_and_label(folder_path):
     fout = f"assets/preprocessed_datasets/{folder_path.split('/')[-2]}_session{folder_path.split('/')[-1]}.csv"
     data.to_csv(fout, index=False)
 
-def generate_CSI_dataset(fpath, settings, data_length, model=None, amplitude_only=True, threshold=0.75):
+def generate_CSI_dataset(fpath, settings, data_length, model=None, amplitude_only=True, threshold=0.75, n_PCA_components=None):
     fin = pandas.read_csv(fpath)
     #preprocess
     labels = fin["label"]
@@ -51,9 +52,17 @@ def generate_CSI_dataset(fpath, settings, data_length, model=None, amplitude_onl
         fin = normalize(fin.iloc[:, 1:457], settings["max_amplitude"], settings["min_amplitude"])
     else:
         fin = normalize(fin.iloc[:, 1:], settings["max_amplitude"], settings["min_amplitude"])
+
     datas = numpy.zeros(fin.shape, numpy.float64)
     for i in range(fin.shape[1]):
         datas[:, i] = reduce_noise(fin.iloc[:, i])
+    
+    if (n_PCA_components is not None):
+        pca = PCA(n_PCA_components)
+        new_datas = numpy.zeros((len(datas), n_PCA_components*4), numpy.float64)
+        for i in range(0, 4):
+            new_datas[:, n_PCA_components*i:n_PCA_components*(i+1)] = pca.fit_transform(datas[:, 114*i:114*(i+1)])
+        datas = new_datas
 
     dataset = []
     action_dict = {
@@ -101,4 +110,4 @@ if __name__=="__main__":
         settings = json.load(fin)
 
     fpath = "assets/preprocessed_datasets/room_1_session1.csv"
-    print(generate_CSI_dataset(fpath, settings, 25))
+    generate_CSI_dataset(fpath, settings, 25, n_PCA_components=50)

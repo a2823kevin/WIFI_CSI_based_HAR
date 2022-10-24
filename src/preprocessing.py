@@ -3,7 +3,6 @@ import json
 
 import numpy
 import pandas
-from hampel import hampel
 import pywt
 
 def update_amp_settings():
@@ -21,6 +20,38 @@ def update_amp_settings():
     with open("src/settings.json", "w") as fout:
         settings["max_amplitude"] = max(max_lst)
         settings["min_amplitude"] = min(min_lst)
+        json.dump(settings, fout)
+
+def update_class_weight():
+    action_dict = {
+        "standing": 0,
+        "walking": 1,
+        "get_down": 2,
+        "sitting": 3,
+        "get_up": 4,
+        "lying": 5,
+        "no_person": 6
+    }
+
+    counting_table = {}
+    for i in range(0, 7):
+        counting_table[i] = 0
+
+    for data in os.listdir("assets/preprocessed_datasets"):
+        if (data.endswith(".csv")):
+            fin = pandas.read_csv(f"assets/preprocessed_datasets/{data}")
+            count = fin["label"].value_counts()
+            for key in count.keys():
+                counting_table[action_dict[key]] += count[key]
+    
+    n_sample = sum(counting_table.values())
+    for key in counting_table.keys():
+        counting_table[key] /= n_sample
+    
+    with open("src/settings.json", "r") as fin:
+        settings = json.load(fin)
+    with open("src/settings.json", "w") as fout:
+        settings["class_weight"] = list(counting_table.values())
         json.dump(settings, fout)
 
 def normalize(data, max_amp, min_amp):
@@ -63,9 +94,4 @@ def reduce_noise(data):
 if __name__=="__main__":
     with open("src/settings.json", "r") as fin:
         settings = json.load(fin)
-    fin = pandas.read_csv("assets/preprocessed_datasets/room_1_session1.csv")
-    data = fin.iloc[:, 1:457]
-    print(data)
-    data = normalize(data, settings["max_amplitude"], settings["min_amplitude"])
-    print(data.shape)
-    #data = reduce_noise(data)
+    update_class_weight()
