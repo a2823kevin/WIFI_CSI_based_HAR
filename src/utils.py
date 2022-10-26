@@ -96,6 +96,25 @@ def merge_datasets(dataset_lst):
             dataset_lst[0].append(dataset_lst[i][j])
     return dataset_lst[0]
 
+def divide_dataset_by_class(dataset):
+    action_dict = {
+        0: "standing", 
+        1: "walking",
+        2: "get_down",
+        3: "sitting",
+        4: "get_up",
+        5: "lying",
+        6: "no_person"
+    }
+
+    ds_dict = {}
+    for key in action_dict.values():
+        ds_dict[key] = []
+    for (data, label) in dataset:
+        ds_dict[action_dict[int(torch.argmax(label, 0))]].append((data, label))
+    
+    return ds_dict
+
 if __name__=="__main__":
     #preprocess datas
     '''
@@ -106,8 +125,12 @@ if __name__=="__main__":
                 folder_path = f"{ds_folder}/{room}/{session}"
                 merge_data_and_label(folder_path)
     '''
+
+    
     with open("src/settings.json", "r") as fin:
         settings = json.load(fin)
 
     fpath = "assets/preprocessed_datasets/room_1_session1.csv"
-    generate_CSI_dataset(fpath, settings, 25, n_PCA_components=50)
+    ds = generate_CSI_dataset(fpath, settings, 25, n_PCA_components=114)
+    
+    print(divide_dataset_by_class(ds))

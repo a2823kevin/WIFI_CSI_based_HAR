@@ -92,6 +92,5 @@ def reduce_noise(data):
 
 
 if __name__=="__main__":
-    with open("src/settings.json", "r") as fin:
-        settings = json.load(fin)
+    update_amp_settings()
     update_class_weight()
